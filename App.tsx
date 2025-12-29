@@ -97,7 +97,7 @@ const App: React.FC = () => {
       const file = files[i];
       if (file.type.startsWith('audio/') || file.name.toLowerCase().endsWith('.mp3')) {
         const url = URL.createObjectURL(file);
-        
+
         const metadata: any = await new Promise((resolve) => {
           if (!jsmediatags) {
             resolve({ title: file.name, artist: 'Unknown Artist' });
@@ -191,8 +191,8 @@ const App: React.FC = () => {
     }
   };
 
-  const filteredSongs = songs.filter(s => 
-    s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredSongs = songs.filter(s =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.artist.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -208,7 +208,7 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden">
       <div className="flex-1 relative overflow-hidden">
         {view === ViewType.LIBRARY && (
-          <Library 
+          <Library
             songs={filteredSongs}
             onPlaySong={playSong}
             currentSongId={playback.currentSongIndex !== -1 ? songs[playback.currentSongIndex].id : undefined}
@@ -218,9 +218,9 @@ const App: React.FC = () => {
             setSearchQuery={setSearchQuery}
           />
         )}
-        
+
         {view === ViewType.PLAYER && playback.currentSongIndex !== -1 && (
-          <Player 
+          <Player
             song={songs[playback.currentSongIndex]}
             playback={playback}
             onPlayPause={() => handlePlayPause()}
@@ -235,43 +235,50 @@ const App: React.FC = () => {
 
       <div className="safe-bottom-padding glass-effect border-t border-slate-800/50 pb-2">
         {playback.currentSongIndex !== -1 && view !== ViewType.PLAYER && (
-          <div 
-            className="flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-slate-800/50 transition-colors"
-            onClick={() => setView(ViewType.PLAYER)}
-          >
-            <div className="w-12 h-12 rounded-lg bg-slate-800 overflow-hidden flex-shrink-0 shadow-lg">
-              {songs[playback.currentSongIndex].coverUrl ? (
-                <img src={songs[playback.currentSongIndex].coverUrl} className="w-full h-full object-cover" alt="cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Music size={24} className="text-slate-500" />
-                </div>
-              )}
+          <div className="relative group" onClick={() => setView(ViewType.PLAYER)}>
+            <div className="absolute -top-[1px] left-0 right-0 h-[2px] bg-slate-800/50 pointer-events-none">
+              <div
+                className="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.5)] transition-all duration-200 ease-linear"
+                style={{ width: `${(playback.currentTime / (playback.duration || 1)) * 100}%` }}
+              />
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold truncate text-slate-100">{songs[playback.currentSongIndex].title}</h4>
-              <p className="text-xs text-slate-400 truncate">{songs[playback.currentSongIndex].artist}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
-                className="p-2 rounded-full hover:bg-slate-700/50"
-              >
-                {playback.isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
-              </button>
+            <div
+              className="flex items-center px-4 py-3 gap-3 cursor-pointer active:bg-slate-800/50 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-lg bg-slate-800 overflow-hidden flex-shrink-0 shadow-lg">
+                {songs[playback.currentSongIndex].coverUrl ? (
+                  <img src={songs[playback.currentSongIndex].coverUrl} className="w-full h-full object-cover" alt="cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Music size={24} className="text-slate-500" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold truncate text-slate-100">{songs[playback.currentSongIndex].title}</h4>
+                <p className="text-xs text-slate-400 truncate">{songs[playback.currentSongIndex].artist}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
+                  className="p-2 rounded-full hover:bg-slate-700/50"
+                >
+                  {playback.isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         <nav className="flex justify-around items-center pt-2 pb-safe">
-          <button 
+          <button
             onClick={() => setView(ViewType.LIBRARY)}
             className={`flex flex-col items-center gap-1 p-2 transition-colors ${view === ViewType.LIBRARY ? 'text-sky-400' : 'text-slate-500'}`}
           >
             <LibraryIcon size={22} />
             <span className="text-[10px] font-medium">Library</span>
           </button>
-          <button 
+          <button
             onClick={() => playback.currentSongIndex !== -1 && setView(ViewType.PLAYER)}
             className={`flex flex-col items-center gap-1 p-2 transition-colors ${view === ViewType.PLAYER ? 'text-sky-400' : 'text-slate-500'} ${playback.currentSongIndex === -1 ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
@@ -285,11 +292,11 @@ const App: React.FC = () => {
         </nav>
       </div>
 
-      <input 
+      <input
         id="folder-input"
-        type="file" 
-        className="hidden" 
-        multiple 
+        type="file"
+        className="hidden"
+        multiple
         webkitdirectory="true"
         onChange={handleScanFolder}
       />

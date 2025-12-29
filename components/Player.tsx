@@ -14,13 +14,13 @@ interface PlayerProps {
   setPlayback: React.Dispatch<React.SetStateAction<PlaybackState>>;
 }
 
-const Player: React.FC<PlayerProps> = ({ 
-  song, 
-  playback, 
-  onPlayPause, 
-  onNext, 
-  onPrev, 
-  onSeek, 
+const Player: React.FC<PlayerProps> = ({
+  song,
+  playback,
+  onPlayPause,
+  onNext,
+  onPrev,
+  onSeek,
   onClose,
   setPlayback
 }) => {
@@ -41,15 +41,15 @@ const Player: React.FC<PlayerProps> = ({
     <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col p-8 transition-all duration-300 animate-in slide-in-from-bottom">
       {/* Background Glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-         <div 
+        <div
           className="absolute -top-1/4 -left-1/4 w-[150%] h-[150%] blur-[100px] animate-[pulse_8s_infinite]"
           style={{ background: `radial-gradient(circle, ${playback.isPlaying ? '#38bdf8' : '#1e293b'} 0%, transparent 70%)` }}
-         />
+        />
       </div>
 
       {/* Header */}
       <div className="flex items-center justify-between relative z-10 mb-8">
-        <button 
+        <button
           onClick={onClose}
           className="p-2 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-100"
         >
@@ -91,15 +91,33 @@ const Player: React.FC<PlayerProps> = ({
 
         {/* Seek Bar */}
         <div className="space-y-2 mb-8">
-          <input 
-            type="range"
-            min="0"
-            max={playback.duration || 100}
-            step="0.1"
-            value={playback.currentTime}
-            onChange={(e) => onSeek(parseFloat(e.target.value))}
-            className="w-full h-1.5 cursor-pointer accent-sky-500"
-          />
+          <div className="relative w-full h-6 flex items-center group">
+            {/* Track Background */}
+            <div className="absolute left-0 right-0 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              {/* Progress Fill */}
+              <div
+                className="h-full bg-sky-500 transition-all duration-100 ease-linear"
+                style={{ width: `${(playback.currentTime / (playback.duration || 1)) * 100}%` }}
+              />
+            </div>
+
+            {/* Thumb (Visual only, follows progress) */}
+            <div
+              className="absolute h-4 w-4 bg-white rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform duration-200 pointer-events-none"
+              style={{ left: `calc(${(playback.currentTime / (playback.duration || 1)) * 100}% - 8px)` }}
+            />
+
+            {/* Invisible Input for Interaction */}
+            <input
+              type="range"
+              min="0"
+              max={playback.duration || 100}
+              step="0.1"
+              value={playback.currentTime}
+              onChange={(e) => onSeek(parseFloat(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+          </div>
           <div className="flex justify-between text-[10px] font-bold text-slate-500 tracking-wider">
             <span>{formatTime(playback.currentTime)}</span>
             <span>{formatTime(playback.duration)}</span>
@@ -108,29 +126,29 @@ const Player: React.FC<PlayerProps> = ({
 
         {/* Playback Buttons */}
         <div className="flex items-center justify-between mb-8">
-          <button 
+          <button
             onClick={toggleShuffle}
             className={`p-2 transition-colors ${playback.isShuffle ? 'text-sky-400' : 'text-slate-500'}`}
           >
             <Shuffle size={20} />
           </button>
-          
+
           <div className="flex items-center gap-8">
-            <button 
+            <button
               onClick={onPrev}
               className="p-3 text-slate-100 hover:text-sky-400 transition-colors active:scale-90"
             >
               <SkipBack size={32} fill="currentColor" />
             </button>
-            
-            <button 
+
+            <button
               onClick={onPlayPause}
               className="w-20 h-20 bg-sky-500 rounded-full flex items-center justify-center text-slate-950 shadow-xl shadow-sky-500/20 active:scale-95 transition-all"
             >
               {playback.isPlaying ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" className="ml-1" />}
             </button>
-            
-            <button 
+
+            <button
               onClick={onNext}
               className="p-3 text-slate-100 hover:text-sky-400 transition-colors active:scale-90"
             >
@@ -138,7 +156,7 @@ const Player: React.FC<PlayerProps> = ({
             </button>
           </div>
 
-          <button 
+          <button
             onClick={toggleRepeat}
             className={`p-2 transition-colors relative ${playback.repeatMode !== 'none' ? 'text-sky-400' : 'text-slate-500'}`}
           >
