@@ -1,4 +1,3 @@
-
 {
   "name": "SonicFlow Offline",
   "description": "A high-fidelity offline music player designed for mobile-first experience. It features local folder scanning, metadata extraction, background playback support via Media Session API, and a beautiful modern UI.",

@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Music, Search, Library as LibraryIcon, Settings, ListMusic, ChevronDown, FolderOpen, RefreshCcw, Shuffle, Repeat } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause, SkipForward, Music, Library as LibraryIcon, Settings, FolderOpen, Loader2 } from 'lucide-react';
 import { Song, PlaybackState, ViewType } from './types';
 import Library from './components/Library';
 import Player from './components/Player';
+import { getAllSongsFromDB, saveSongsToDB } from './db';
 
-// Mock window typing for jsmediatags
 declare global {
   interface Window {
     jsmediatags: any;
@@ -25,27 +25,37 @@ const App: React.FC = () => {
     isShuffle: false,
   });
   const [isScanning, setIsScanning] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize Audio
+  // Initialize DB and Audio
   useEffect(() => {
+    const initApp = async () => {
+      try {
+        const storedSongs = await getAllSongsFromDB();
+        // Regenerate blobs URLs as they are session-specific
+        const hydratedSongs = storedSongs.map(song => ({
+          ...song,
+          url: URL.createObjectURL(song.file)
+        }));
+        setSongs(hydratedSongs);
+      } catch (e) {
+        console.error("Failed to load library", e);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initApp();
+
     audioRef.current = new Audio();
-    
     const audio = audioRef.current;
 
-    const handleTimeUpdate = () => {
-      setPlayback(prev => ({ ...prev, currentTime: audio.currentTime }));
-    };
-
-    const handleLoadedMetadata = () => {
-      setPlayback(prev => ({ ...prev, duration: audio.duration }));
-    };
-
-    const handleEnded = () => {
-      handleNext();
-    };
+    const handleTimeUpdate = () => setPlayback(prev => ({ ...prev, currentTime: audio.currentTime }));
+    const handleLoadedMetadata = () => setPlayback(prev => ({ ...prev, duration: audio.duration }));
+    const handleEnded = () => handleNext();
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -55,7 +65,6 @@ const App: React.FC = () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
-      audio.pause();
     };
   }, []);
 
@@ -69,7 +78,6 @@ const App: React.FC = () => {
         album: song.album || 'Unknown Album',
         artwork: song.coverUrl ? [{ src: song.coverUrl, sizes: '512x512', type: 'image/png' }] : []
       });
-
       navigator.mediaSession.setActionHandler('play', () => handlePlayPause(true));
       navigator.mediaSession.setActionHandler('pause', () => handlePlayPause(false));
       navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
@@ -87,10 +95,9 @@ const App: React.FC = () => {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3')) {
+      if (file.type.startsWith('audio/') || file.name.toLowerCase().endsWith('.mp3')) {
         const url = URL.createObjectURL(file);
         
-        // Extract metadata
         const metadata: any = await new Promise((resolve) => {
           if (!jsmediatags) {
             resolve({ title: file.name, artist: 'Unknown Artist' });
@@ -109,14 +116,14 @@ const App: React.FC = () => {
                 coverUrl = `data:${format};base64,${window.btoa(base64String)}`;
               }
               resolve({
-                title: title || file.name.replace(/\.mp3$/i, ''),
+                title: title || file.name.replace(/\.[^/.]+$/, ""),
                 artist: artist || 'Unknown Artist',
                 album: album || 'Unknown Album',
                 coverUrl
               });
             },
             onError: () => {
-              resolve({ title: file.name.replace(/\.mp3$/i, ''), artist: 'Unknown Artist' });
+              resolve({ title: file.name.replace(/\.[^/.]+$/, ""), artist: 'Unknown Artist' });
             }
           });
         });
@@ -126,7 +133,7 @@ const App: React.FC = () => {
           title: metadata.title,
           artist: metadata.artist,
           album: metadata.album,
-          duration: 0, // Will be updated on load
+          duration: 0,
           file: file,
           url: url,
           coverUrl: metadata.coverUrl
@@ -134,13 +141,15 @@ const App: React.FC = () => {
       }
     }
 
-    setSongs(prev => [...prev, ...newSongs]);
+    if (newSongs.length > 0) {
+      await saveSongsToDB(newSongs);
+      setSongs(prev => [...prev, ...newSongs]);
+    }
     setIsScanning(false);
   };
 
   const playSong = (index: number) => {
     if (!audioRef.current || index < 0 || index >= songs.length) return;
-    
     const song = songs[index];
     audioRef.current.src = song.url;
     audioRef.current.play();
@@ -154,31 +163,24 @@ const App: React.FC = () => {
 
   const handlePlayPause = (shouldPlay?: boolean) => {
     if (!audioRef.current || playback.currentSongIndex === -1) return;
-    
     const playStatus = shouldPlay !== undefined ? shouldPlay : !playback.isPlaying;
-    if (playStatus) {
-      audioRef.current.play();
-    } else {
-      audioRef.current.pause();
-    }
+    if (playStatus) audioRef.current.play();
+    else audioRef.current.pause();
     setPlayback(prev => ({ ...prev, isPlaying: playStatus }));
   };
 
   const handleNext = () => {
+    if (songs.length === 0) return;
     let nextIndex = playback.currentSongIndex + 1;
-    if (playback.isShuffle) {
-      nextIndex = Math.floor(Math.random() * songs.length);
-    } else if (nextIndex >= songs.length) {
-      nextIndex = 0;
-    }
+    if (playback.isShuffle) nextIndex = Math.floor(Math.random() * songs.length);
+    else if (nextIndex >= songs.length) nextIndex = 0;
     playSong(nextIndex);
   };
 
   const handlePrev = () => {
+    if (songs.length === 0) return;
     let prevIndex = playback.currentSongIndex - 1;
-    if (prevIndex < 0) {
-      prevIndex = songs.length - 1;
-    }
+    if (prevIndex < 0) prevIndex = songs.length - 1;
     playSong(prevIndex);
   };
 
@@ -194,9 +196,16 @@ const App: React.FC = () => {
     s.artist.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (isInitializing) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-sky-400">
+        <Loader2 className="animate-spin" size={48} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Main View Area */}
       <div className="flex-1 relative overflow-hidden">
         {view === ViewType.LIBRARY && (
           <Library 
@@ -224,7 +233,6 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* Mini Player / Bottom Navigation */}
       <div className="safe-bottom-padding glass-effect border-t border-slate-800/50 pb-2">
         {playback.currentSongIndex !== -1 && view !== ViewType.PLAYER && (
           <div 
@@ -251,12 +259,6 @@ const App: React.FC = () => {
               >
                 {playback.isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
               </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                className="p-2 rounded-full hover:bg-slate-700/50"
-              >
-                <SkipForward size={24} />
-              </button>
             </div>
           </div>
         )}
@@ -276,22 +278,19 @@ const App: React.FC = () => {
             <Music size={22} />
             <span className="text-[10px] font-medium">Player</span>
           </button>
-          <button 
-            className="flex flex-col items-center gap-1 p-2 text-slate-500 opacity-50 cursor-not-allowed"
-          >
+          <button className="flex flex-col items-center gap-1 p-2 text-slate-500 opacity-50 cursor-not-allowed">
             <Settings size={22} />
             <span className="text-[10px] font-medium">Settings</span>
           </button>
         </nav>
       </div>
 
-      {/* Hidden Inputs */}
       <input 
         id="folder-input"
         type="file" 
         className="hidden" 
         multiple 
-        accept="audio/mpeg" 
+        webkitdirectory="true"
         onChange={handleScanFolder}
       />
     </div>

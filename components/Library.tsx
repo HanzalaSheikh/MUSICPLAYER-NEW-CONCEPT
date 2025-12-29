@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Music, Search, FolderOpen, RefreshCcw, Loader2, Play } from 'lucide-react';
+import { Music, Search, FolderOpen, Loader2, Play, PlusCircle } from 'lucide-react';
 import { Song } from '../types';
 
 interface LibraryProps {
@@ -24,21 +24,23 @@ const Library: React.FC<LibraryProps> = ({
 }) => {
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <header className="p-6 pb-2">
         <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">Your Library</h1>
-        <div className="relative mb-6">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <Search size={18} className="text-slate-500" />
+        
+        {songs.length > 0 && (
+          <div className="relative mb-6">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Search size={18} className="text-slate-500" />
+            </div>
+            <input 
+              type="text"
+              placeholder="Search songs, artists..."
+              className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all text-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <input 
-            type="text"
-            placeholder="Search songs, artists..."
-            className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all text-sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        )}
 
         <div className="flex items-center justify-between mb-4">
           <span className="text-sm text-slate-400 font-medium">
@@ -47,27 +49,36 @@ const Library: React.FC<LibraryProps> = ({
           <button 
             onClick={onScan}
             disabled={isScanning}
-            className="flex items-center gap-2 text-xs font-semibold bg-slate-900 border border-slate-800 px-4 py-2 rounded-full hover:bg-slate-800 transition-colors active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 text-xs font-semibold bg-sky-500 text-slate-950 px-4 py-2 rounded-full hover:bg-sky-400 transition-colors active:scale-95 disabled:opacity-50"
           >
             {isScanning ? (
-              <Loader2 size={16} className="animate-spin text-sky-400" />
+              <Loader2 size={16} className="animate-spin" />
             ) : (
-              <FolderOpen size={16} className="text-sky-400" />
+              <PlusCircle size={16} />
             )}
-            {isScanning ? 'Scanning...' : 'Add Music'}
+            {isScanning ? 'Syncing...' : 'Import Folder'}
           </button>
         </div>
       </header>
 
-      {/* Song List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-20">
         {songs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500 opacity-60 px-10 text-center mt-10">
-            <div className="w-20 h-20 rounded-3xl bg-slate-900 flex items-center justify-center mb-4">
-              <Music size={40} />
+          <div className="flex flex-col items-center justify-center h-full text-slate-300 px-10 text-center animate-in fade-in zoom-in duration-500">
+            <div className="w-24 h-24 rounded-full bg-slate-900 border-2 border-dashed border-slate-700 flex items-center justify-center mb-6">
+              <Music size={48} className="text-slate-600" />
             </div>
-            <p className="text-sm font-medium mb-1">Your library is empty</p>
-            <p className="text-xs">Select a folder containing MP3 files to start listening offline.</p>
+            <h2 className="text-xl font-bold mb-2">No Music Found</h2>
+            <p className="text-sm text-slate-500 mb-8 max-w-xs">
+              To start listening, give SonicFlow permission to access your local music folders. 
+            </p>
+            <button 
+              onClick={onScan}
+              disabled={isScanning}
+              className="w-full py-4 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-[0.98] transition-all"
+            >
+              {isScanning ? <Loader2 className="animate-spin" /> : <FolderOpen size={20} />}
+              {isScanning ? 'Analyzing files...' : 'Select Music Folder'}
+            </button>
           </div>
         ) : (
           <div className="space-y-1">
