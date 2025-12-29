@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasRestored = useRef(false);
 
   // Initialize DB and Audio
   useEffect(() => {
@@ -50,40 +51,67 @@ const App: React.FC = () => {
 
     initApp();
 
-    audioRef.current = new Audio();
-    const audio = audioRef.current;
+    const handleBeforeUnload = () => {
+      const state = {
+        index: playback.currentSongIndex,
+        time: audioRef.current?.currentTime || 0
+      };
+      localStorage.setItem('sonicflow_state', JSON.stringify(state));
+    };
 
-    const handleTimeUpdate = () => setPlayback(prev => ({ ...prev, currentTime: audio.currentTime }));
-    const handleLoadedMetadata = () => setPlayback(prev => ({ ...prev, duration: audio.duration }));
-    const handleEnded = () => handleNext();
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('ended', handleEnded);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('ended', handleEnded);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
+  }, [playback.currentSongIndex]); // Add dependency to ensure we have latest index
+
+  // Restore state after songs are loaded
+  useEffect(() => {
+    if (songs.length > 0 && audioRef.current && !hasRestored.current) {
+      try {
+        const saved = localStorage.getItem('sonicflow_state');
+        if (saved) {
+          const { index, time } = JSON.parse(saved);
+          if (index >= 0 && index < songs.length) {
+            hasRestored.current = true; // Mark as restored
+            const song = songs[index];
+            audioRef.current.src = song.url;
+
+            // We need to wait for metadata to set currentTime reliably
+            const onMetadata = () => {
+              if (audioRef.current) {
+                audioRef.current.currentTime = time;
+                audioRef.current.removeEventListener('loadedmetadata', onMetadata);
+              }
+            };
+            audioRef.current.addEventListener('loadedmetadata', onMetadata);
+
+            setPlayback(prev => ({
+              ...prev,
+              currentSongIndex: index,
+              currentTime: time,
+              duration: song.duration
+            }));
+          }
+        } else {
+          hasRestored.current = true; // No state to restore, but mark as done
+        }
+      } catch (e) {
+        console.error("Failed to restore state", e);
+        hasRestored.current = true;
+      }
+    }
+  }, [songs]);
+
+  // Initialize Audio
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
   }, []);
 
-  // Update Media Session API
-  useEffect(() => {
-    if ('mediaSession' in navigator && playback.currentSongIndex !== -1) {
-      const song = songs[playback.currentSongIndex];
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: song.title,
-        artist: song.artist,
-        album: song.album || 'Unknown Album',
-        artwork: song.coverUrl ? [{ src: song.coverUrl, sizes: '512x512', type: 'image/png' }] : []
-      });
-      navigator.mediaSession.setActionHandler('play', () => handlePlayPause(true));
-      navigator.mediaSession.setActionHandler('pause', () => handlePlayPause(false));
-      navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
-      navigator.mediaSession.setActionHandler('nexttrack', handleNext);
-    }
-  }, [playback.currentSongIndex, songs]);
+
 
   const handleScanFolder = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -151,6 +179,16 @@ const App: React.FC = () => {
   const playSong = (index: number) => {
     if (!audioRef.current || index < 0 || index >= songs.length) return;
     const song = songs[index];
+
+    // If it's the same song, just play it if paused
+    if (playback.currentSongIndex === index) {
+      if (!playback.isPlaying) {
+        audioRef.current.play();
+        setPlayback(prev => ({ ...prev, isPlaying: true }));
+      }
+      return;
+    }
+
     audioRef.current.src = song.url;
     audioRef.current.play();
     setPlayback(prev => ({
@@ -190,6 +228,34 @@ const App: React.FC = () => {
       setPlayback(prev => ({ ...prev, currentTime: time }));
     }
   };
+
+  // Effect for audio event listeners
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      setPlayback(prev => ({ ...prev, currentTime: audio.currentTime }));
+    };
+
+    const handleLoadedMetadata = () => {
+      setPlayback(prev => ({ ...prev, duration: audio.duration }));
+    };
+
+    const handleEnded = () => {
+      handleNext();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [handleNext]);
 
   const filteredSongs = songs.filter(s =>
     s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
