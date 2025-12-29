@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, Music, Library as LibraryIcon, Settings, FolderOpen, Loader2 } from 'lucide-react';
 import { Song, PlaybackState, ViewType } from './types';
@@ -156,6 +155,9 @@ const App: React.FC = () => {
           });
         });
 
+        const pathParts = file.webkitRelativePath.split('/');
+        const folderName = pathParts.length > 1 ? pathParts[0] : 'Unknown Folder';
+
         newSongs.push({
           id: Math.random().toString(36).substr(2, 9),
           title: metadata.title,
@@ -164,7 +166,8 @@ const App: React.FC = () => {
           duration: 0,
           file: file,
           url: url,
-          coverUrl: metadata.coverUrl
+          coverUrl: metadata.coverUrl,
+          folderName: folderName
         });
       }
     }
@@ -257,6 +260,26 @@ const App: React.FC = () => {
     };
   }, [handleNext]);
 
+  const handleRenameFolder = async (oldName: string, newName: string) => {
+    setSongs(currentSongs => {
+      const updated = currentSongs.map(song => {
+        const currentFolder = song.folderName || 'Other';
+        if (currentFolder === oldName) {
+          return { ...song, folderName: newName };
+        }
+        return song;
+      });
+
+      // Persist renamed songs to DB
+      const renamedSongs = updated.filter(s => s.folderName === newName);
+      if (renamedSongs.length > 0) {
+        saveSongsToDB(renamedSongs).catch(err => console.error("Failed to persist folder rename", err));
+      }
+
+      return updated;
+    });
+  };
+
   const filteredSongs = songs.filter(s =>
     s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.artist.toLowerCase().includes(searchQuery.toLowerCase())
@@ -282,6 +305,7 @@ const App: React.FC = () => {
             isScanning={isScanning}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            onRenameFolder={handleRenameFolder}
           />
         )}
 

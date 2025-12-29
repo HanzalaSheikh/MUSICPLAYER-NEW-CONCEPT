@@ -8,6 +8,7 @@ export interface Song {
   file: File;
   coverUrl?: string;
   url: string;
+  folderName?: string;
 }
 
 export interface PlaybackState {
