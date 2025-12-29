@@ -64,16 +64,34 @@ const Player: React.FC<PlayerProps> = ({
         </button>
       </div>
 
-      {/* Album Art Container */}
-      <div className="flex-1 flex flex-col justify-center relative z-10">
-        <div className={`mx-auto w-full aspect-square max-w-[320px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 ${playback.isPlaying ? 'scale-100' : 'scale-90 opacity-80'}`}>
-          {song.coverUrl ? (
-            <img src={song.coverUrl} className="w-full h-full object-cover" alt="album art" />
-          ) : (
-            <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-              <Music size={100} className="text-slate-700" />
-            </div>
-          )}
+      {/* Album Art Container (Vinyl Style) */}
+      <div className="flex-1 flex flex-col justify-center relative z-10 items-center">
+        <div
+          className="relative w-[300px] h-[300px] rounded-full shadow-2xl transition-all duration-500 flex items-center justify-center overflow-hidden animate-[spin_4s_linear_infinite]"
+          style={{
+            background: 'radial-gradient(circle, #1e1e1e 0%, #000000 100%)',
+            boxShadow: '0 0 20px rgba(0,0,0,0.5), inset 0 0 0 2px #333',
+            animationPlayState: playback.isPlaying ? 'running' : 'paused'
+          }}
+        >
+          {/* Vinyl Grooves Effect */}
+          <div className="absolute inset-0 rounded-full border-[10px] border-slate-900/50 pointer-events-none" />
+          <div className="absolute inset-0 rounded-full border-[25px] border-slate-800/20 pointer-events-none" />
+          <div className="absolute inset-0 rounded-full border-[45px] border-slate-800/10 pointer-events-none" />
+
+          {/* Album Art Label */}
+          <div className="w-[180px] h-[180px] rounded-full overflow-hidden border-4 border-slate-900 relative z-10">
+            {song.coverUrl ? (
+              <img src={song.coverUrl} className="w-full h-full object-cover" alt="album art" />
+            ) : (
+              <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                <Music size={60} className="text-slate-600" />
+              </div>
+            )}
+          </div>
+
+          {/* Center Hole */}
+          <div className="absolute w-4 h-4 bg-slate-950 rounded-full z-20 border border-slate-800" />
         </div>
       </div>
 
